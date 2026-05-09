@@ -4,4 +4,4 @@ dist
 node_modules
 .env.development
 .env.production
-src\config\notificationFB.json
+src/config/notificationFB.json
