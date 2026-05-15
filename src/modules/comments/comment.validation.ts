@@ -1,14 +1,17 @@
 import * as z from 'zod';
 import { generalRules } from '../../common/utils/security/generalRules';
+import { On_Model_Enum } from '../../common/enum/post.enum';
 
 export const createCommentSchema = {
     params: z.strictObject({
         postId: generalRules.id,
+        commentId:generalRules.id.optional()
     }),
     body: z.strictObject({
         content: z.string().optional(),
         attachments: z.array(generalRules.file).optional(),
         tags: z.array(generalRules.id).optional(),
+        onModel: z.enum(On_Model_Enum)
 
 
     }).superRefine((args, ctx) => {
@@ -33,12 +36,12 @@ export const createCommentSchema = {
 
 
 }
-export const replyOnCommentSchema = {
+// export const replyOnCommentSchema = {
    
-    body: createCommentSchema.body
+//     body: createCommentSchema.body
 
 
-}
+// }
 
 export const likeCommentSchema = {
     params: z.strictObject({

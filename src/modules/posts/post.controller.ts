@@ -10,7 +10,7 @@ import commentRouter from "../comments/comment.controller";
 
 
 const postRouter = Router()
-postRouter.use("/:postId/comment", commentRouter)
+postRouter.use("/:postId/comment{/:commentId/reply}", commentRouter)
 
 postRouter.post("/createPost",
     authentication,

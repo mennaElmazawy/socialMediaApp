@@ -15,12 +15,12 @@ commentRouter.post("/",
     Validation(commentValidation.createCommentSchema),
     commentServices.createComment
 )
-commentRouter.post("/:commentId/reply",
-    authentication,
-    multerCloud({ store_type: Store_Enum.memory }).array("attachments"),
-    Validation(commentValidation.replyOnCommentSchema),
-    commentServices.replyOnComment
-)
+// commentRouter.post("/:commentId/reply",
+//     authentication,
+//     multerCloud({ store_type: Store_Enum.memory }).array("attachments"),
+//     Validation(commentValidation.replyOnCommentSchema),
+//     commentServices.replyOnComment
+// )
 
 commentRouter.get("/getcomments",
     authentication,

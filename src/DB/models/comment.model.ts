@@ -1,29 +1,19 @@
 
-import { Allow_comment_Enum, Availability_Enum } from './../../common/enum/post.enum';
+import { Allow_comment_Enum, Availability_Enum, On_Model_Enum } from './../../common/enum/post.enum';
 import mongoose, { HydratedDocument, Types } from "mongoose";
 import { IUser } from './user.model';
 import { IPost } from './post.model';
 
-
-
 export interface IComment {
     content?: string,
     attachments?: string[],
-
     createdBy: Types.ObjectId | IUser,
-    updatedBy?: Types.ObjectId | IUser,
-
     tags?: Types.ObjectId[] | IUser[],
     likes?: Types.ObjectId[] | IUser[],
-
-    postId: Types.ObjectId | IPost,
-    commentId?: Types.ObjectId | IComment,
-
-    createdAt: Date,
-    updatedAt?: Date,
+    refId: Types.ObjectId ,
+    onModel: string,
     deletedAt?: Date,
-    restoredAt?: Date
-
+    folderId:string
 
 }
 
@@ -42,27 +32,24 @@ const commentSchema = new mongoose.Schema<IComment>({
         type: Types.ObjectId,
         ref: "User"
     }],
-    postId: {
+    refId: {
         type: Types.ObjectId,
-        ref: "Post",
+        refPath: "onModel",
         required: true
     },
-    commentId: {
-        type: Types.ObjectId,
-        ref: "Comment"
-    },
-    updatedBy: {
-        type: Types.ObjectId,
-        ref: "User"
+    onModel: {
+        type: String,
+        enum:On_Model_Enum,
+        required:true
+        
     },
     createdBy: {
         type: Types.ObjectId,
         ref: "User",
         required: true
     },
-
     deletedAt: Date,
-    restoredAt: Date,
+    folderId:String
 
 }, {
     timestamps: true,
@@ -77,11 +64,11 @@ const commentSchema = new mongoose.Schema<IComment>({
 })
 
 
-commentSchema.virtual("reply",{
-    ref:"Comment",
-    localField:"_id",
-    foreignField:"commentId",
-    justOne:true
+commentSchema.virtual("reply", {
+    ref: "Comment",
+    localField: "_id",
+    foreignField: "refId",
+    justOne: true
 })
 commentSchema.post("findOneAndUpdate", async function (doc) {
 

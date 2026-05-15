@@ -1,3 +1,4 @@
+import { Allow_comment_Enum, On_Model_Enum } from './../../common/enum/post.enum';
 import { Request, Response } from "express"
 import notificationService from "../../common/services/notification.service"
 import { redisService, RedisService } from "../../common/services/redis.service"
@@ -12,6 +13,8 @@ import { AvailabilityPost } from "../../common/utils/security/post.utils"
 import CommentRepository from "../../DB/repositories/comment.repositories"
 import { CreateCommentBodyDto, UpdateCommentBodyDto } from "./comment.dto"
 import { IPost } from "../../DB/models/post.model"
+import { randomUUID } from 'crypto';
+import { IComment } from '../../DB/models/comment.model.js';
 
 
 class CommentService {
@@ -28,19 +31,51 @@ class CommentService {
     }
 
     createComment = async (req: Request, res: Response) => {
-        const { postId } = req.params
-        const { content, tags }: CreateCommentBodyDto = req.body
+        const { postId, commentId } = req.params
+        const { content, tags, onModel }: CreateCommentBodyDto = req.body
+        let doc: HydratedDocument<IPost | IComment> | null = null
+        if (onModel === On_Model_Enum.Post && !commentId) {
+            doc = await this._postModel.findOne({
+                filter: {
+                    _id: postId,
+                    $or: [...AvailabilityPost(req)],
+                    allowComment: Allow_comment_Enum.allow
+                }
+            })
 
-        const post = await this._postModel.findOne({
-            filter: {
-                _id: postId,
-                ...AvailabilityPost(req)
+            if (!doc) {
+                throw new AppError("post not found", 404)
             }
-        })
+        } else if (onModel === On_Model_Enum.Comment && commentId) {
+            const comment = await this._commentModel.findOne({
+                filter: {
+                    _id: commentId!,
+                    refId: postId!
+                },
+                options: {
+                    populate: [{
+                        path: "refId",
+                        match: {
+                            $or: [...AvailabilityPost(req)],
+                            allowComment: Allow_comment_Enum.allow
 
-        if (!post) {
-            throw new AppError("post not found", 404)
+
+                        }
+
+                    }]
+                }
+            })
+
+            if (!comment?.refId) {
+                throw new AppError("comment not found", 404)
+            }
+            doc = comment
         }
+
+        if (!doc) {
+            throw new AppError("invalid onModel value", 400)
+        }
+
 
 
         let mentions: Types.ObjectId[] = []
@@ -62,22 +97,23 @@ class CommentService {
         }
 
         let urls: string[] = []
-        let folderId = post.folderId
+        let folderId = randomUUID()
         if (req?.files) {
             urls = await this._s3service.uploadFiles({
                 files: req.files as Express.Multer.File[],
-                path: `users/${req?.user?._id}/posts/${folderId}`,
+                path: `users/${req?.user?._id}/posts/${doc?.folderId}/comments/${folderId}`,
                 store_type: Store_Enum.memory
             })
         }
 
         const comment = await this._commentModel.create({
-            content: content!,
+            content: content || "",
             attachments: urls,
-            postId: post._id,
+            refId: doc?._id!,
             tags: mentions,
             createdBy: req?.user?._id!,
-
+            folderId,
+            onModel: onModel
 
         })
 
@@ -101,87 +137,93 @@ class CommentService {
         successResponse({ res, message: "comment created", data: comment })
     }
 
-    replyOnComment = async (req: Request, res: Response) => {
-        const { postId, commentId } = req.params
-        const { content, tags }: CreateCommentBodyDto = req.body
+    // replyOnComment = async (req: Request, res: Response) => {
+    //     const { postId, commentId } = req.params
+    //     const { content, tags }: CreateCommentBodyDto = req.body
 
-        const comment = await this._commentModel.findOne({
-            filter: {
-                _id: commentId!,
-                postId: postId!
-            },
-            options: {
-                populate: [{
-                    path: "postId",
-                    match: { ...AvailabilityPost(req) }
-
-                }]
-            }
-        })
-
-        if (!comment?.postId) {
-            throw new AppError("comment not found", 404)
-        }
-
-        let mentions: Types.ObjectId[] = []
-        let fcmTokens: string[] = []
-        if (tags?.length) {
-            const mentionsTags = await this._userModel.find({
-                filter: { _id: { $in: tags } },
-            })
-            if (tags.length !== mentionsTags.length) {
-                throw new AppError("tags are invalid")
-            }
-            for (const tag of mentionsTags) {
-                if (tag._id.toString() === req.user?._id.toString()) {
-                    throw new AppError("you can't tag yourself", 400)
-                };
-                mentions.push(tag._id);
-                (await this.redis.getFCMs(tag._id)).map((token) => fcmTokens.push(token))
-            }
-        }
-
-        let urls: string[] = []
-        const post = comment.postId as HydratedDocument<IPost>
-        let folderId = post.folderId
-        if (req?.files) {
-            urls = await this._s3service.uploadFiles({
-                files: req.files as Express.Multer.File[],
-                path: `users/${req?.user?._id}/posts/${folderId}`,
-                store_type: Store_Enum.memory
-            })
-        }
-
-        const reply = await this._commentModel.create({
-            content: content!,
-            attachments: urls,
-            postId: post._id,
-            commentId: comment._id,
-            tags: mentions,
-            createdBy: req?.user?._id!,
+    //     const comment = await this._commentModel.findOne({
+    //         filter: {
+    //             _id: commentId!,
+    //             postId: postId!
+    //         },
+    //         options: {
+    //             populate: [{
+    //                 path: "postId",
+    //                 match: {
+    //                     $or: [...AvailabilityPost(req)],
+    //                     allowComment: Allow_comment_Enum.allow
 
 
-        })
+    //                 }
 
-        if (!reply) {
-            await this._s3service.deleteFiles(urls)
-            throw new AppError("post not created", 500)
-        }
+    //             }]
+    //         }
+    //     })
+
+    //     if (!comment?.postId) {
+    //         throw new AppError("comment not found", 404)
+    //     }
+
+    //     let mentions: Types.ObjectId[] = []
+    //     let fcmTokens: string[] = []
+    //     if (tags?.length) {
+    //         const mentionsTags = await this._userModel.find({
+    //             filter: { _id: { $in: tags } },
+    //         })
+    //         if (tags.length !== mentionsTags.length) {
+    //             throw new AppError("tags are invalid")
+    //         }
+    //         for (const tag of mentionsTags) {
+    //             if (tag._id.toString() === req.user?._id.toString()) {
+    //                 throw new AppError("you can't tag yourself", 400)
+    //             };
+    //             mentions.push(tag._id);
+    //             (await this.redis.getFCMs(tag._id)).map((token) => fcmTokens.push(token))
+    //         }
+    //     }
+
+    //     let urls: string[] = []
+    //     const post = comment.postId as HydratedDocument<IPost>
+    //     let folderId = randomUUID()
+    //     if (req?.files) {
+    //         urls = await this._s3service.uploadFiles({
+    //             files: req.files as Express.Multer.File[],
+    //             path: `users/${req?.user?._id}/posts/${(comment.postId as any).folderId}/comments/${folderId}`,
+    //             store_type: Store_Enum.memory
+    //         })
+    //     }
+
+    //     const reply = await this._commentModel.create({
+    //         content: content!,
+    //         attachments: urls,
+    //         postId: post._id,
+    //         commentId: comment._id,
+    //         tags: mentions,
+    //         createdBy: req?.user?._id!,
+    //         folderId
+
+
+    //     })
+
+    //     if (!reply) {
+    //         await this._s3service.deleteFiles(urls)
+    //         throw new AppError("post not created", 500)
+    //     }
 
 
 
-        if (fcmTokens?.length) {
-            await this._notificationService.sendNotifications({
-                tokens: fcmTokens,
-                data: {
-                    title: "you are replied in a post",
-                    body: content ? content : "media post"
-                }
+    //     if (fcmTokens?.length) {
+    //         await this._notificationService.sendNotifications({
+    //             tokens: fcmTokens,
+    //             data: {
+    //                 title: "you are replied in a post",
+    //                 body: content ? content : "media post"
+    //             }
 
-            })
-        }
-        successResponse({ res, message: "comment created", data: reply })
-    }
+    //         })
+    //     }
+    //     successResponse({ res, message: "comment created", data: reply })
+    // }
 
     getComments = async (req: Request, res: Response) => {
         const { postId } = req.params
@@ -195,18 +237,15 @@ class CommentService {
         if (!post) {
             throw new AppError("post not found", 404)
         }
+        const searchQuery = req.query?.search ? { content: { $regex: req.query.search, $options: "i" } } : {}
         const comments = await this._commentModel.paginate({
             page: +req.query.page!,
             limit: +req.query.limit!,
             search: {
                 postId,
                 commentId: null,
-                ...AvailabilityPost(req),
-                ...(req.query.search ? {
-                    $or: [
-                        { content: { $regex: req.query.search, $options: "i" } }
-                    ]
-                } : {})
+                $or: [...AvailabilityPost(req)],
+                ...searchQuery
             },
             populate: [{ path: "reply", populate: [{ path: "reply" }] }]
         })
@@ -231,8 +270,8 @@ class CommentService {
         const comment = await this._commentModel.findOneAndUpdate({
             filter: {
                 _id: commentId!,
-                postId: postId!,
-                ...AvailabilityPost(req)
+                refId: postId!,
+                $or: [...AvailabilityPost(req)]
             },
             update: updateQuery,
 
@@ -252,7 +291,7 @@ class CommentService {
         const post = await this._postModel.findOne({
             filter: {
                 _id: postId,
-                ...AvailabilityPost(req)
+                $or: [...AvailabilityPost(req)]
             }
         })
 
@@ -262,7 +301,7 @@ class CommentService {
         const comment = await this._commentModel.findOne({
             filter: {
                 _id: commentId!,
-                postId: postId!,
+                refId: postId!,
                 createdBy: req.user?._id!
             }
         })
@@ -349,7 +388,7 @@ class CommentService {
             throw new AppError("comment not found", 404)
         }
         const isCommentOwner = comment.createdBy.toString() === req.user._id.toString()
-        const isPostOwner = comment.postId.toString() === req.user._id.toString()
+        const isPostOwner = comment.refId.toString() === req.user._id.toString()
         if (!isCommentOwner && !isPostOwner) {
             throw new AppError("unauthorized", 403)
         }
@@ -378,11 +417,11 @@ class CommentService {
             throw new AppError("comment not found", 404)
         }
         const isCommentOwner = comment.createdBy.toString() === req.user._id.toString()
-        const isPostOwner = comment.postId.toString() === req.user._id.toString()
+        const isPostOwner = comment.refId.toString() === req.user._id.toString()
         if (!isCommentOwner && !isPostOwner) {
             throw new AppError("unauthorized", 403)
         }
-       await this._commentModel.findOneAndDelete({
+        await this._commentModel.findOneAndDelete({
             filter: {
                 _id: comment._id
             }

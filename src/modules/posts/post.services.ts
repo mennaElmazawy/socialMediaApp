@@ -89,21 +89,31 @@ class PostService {
 
 
     getPosts = async (req: Request, res: Response) => {
-
+        const searchQuery = req.query?.search ? { content: { $regex: req.query.search, $options: "i" } } : {}
         const posts = await this._postModel.paginate({
             page: +req.query.page!,
             limit: +req.query.limit!,
             search: {
-                ...AvailabilityPost(req),
-                ...(req.query.search ? {
-                    $or: [
-                        { content: { $regex: req.query.search, $options: "i" } }
-                    ]
-                } : {})
+                $or: [
+                    ...AvailabilityPost(req),
+                ],
+                ...searchQuery
+
             },
             populate: [{
                 path: "comments",
-                populate: [{ path: "reply", populate: [{ path: "reply" }] }]
+                match: {
+                    commentId: { $existst: false }
+                },
+                populate: [
+                    {
+                        path: "reply",
+                        populate: [
+                            {
+                                path: "reply"
+                            }
+                        ]
+                    }]
             }]
         })
 
@@ -126,8 +136,9 @@ class PostService {
 
         const post = await this._postModel.findOneAndUpdate({
             filter: {
+                $or:[...AvailabilityPost(req)],
                 _id: postId,
-                ...AvailabilityPost(req)
+                
             },
             update: updateQuery,
 
@@ -258,7 +269,7 @@ class PostService {
             throw new AppError("post not found or unauthorized", 404)
         }
 
-       await this._postModel.findOneAndDelete({
+        await this._postModel.findOneAndDelete({
             filter: {
                 _id: post._id
             }
