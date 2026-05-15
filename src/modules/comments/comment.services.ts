@@ -387,9 +387,18 @@ class CommentService {
         if (!comment) {
             throw new AppError("comment not found", 404)
         }
+        const post = await this._postModel.findOne({
+            filter: {
+                _id:comment.refId,
+            }
+        })
+
+        if (!post) {
+            throw new AppError("post not found", 404)
+        }
         const isCommentOwner = comment.createdBy.toString() === req.user._id.toString()
-        const isPostOwner = comment.refId.toString() === req.user._id.toString()
-        if (!isCommentOwner && !isPostOwner) {
+        const isPostOwner = post.createdBy.toString() === req.user._id.toString()
+        if (!isCommentOwner || !isPostOwner) {
             throw new AppError("unauthorized", 403)
         }
         await this._commentModel.findByIdAndUpdate({
@@ -416,9 +425,18 @@ class CommentService {
         if (!comment) {
             throw new AppError("comment not found", 404)
         }
+         const post = await this._postModel.findOne({
+            filter: {
+                _id:comment.refId,
+            }
+        })
+
+        if (!post) {
+            throw new AppError("post not found", 404)
+        }
         const isCommentOwner = comment.createdBy.toString() === req.user._id.toString()
-        const isPostOwner = comment.refId.toString() === req.user._id.toString()
-        if (!isCommentOwner && !isPostOwner) {
+        const isPostOwner = post.createdBy.toString() === req.user._id.toString()
+        if (!isCommentOwner || !isPostOwner) {
             throw new AppError("unauthorized", 403)
         }
         await this._commentModel.findOneAndDelete({
