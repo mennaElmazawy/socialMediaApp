@@ -34,3 +34,8 @@ export const updatedPasswordSchema = {
 }
 
 export type IUpdatedPasswordSchema = z.infer<typeof updatedPasswordSchema.body>
+
+
+export const getUserSchema=z.strictObject({
+  token:z.string()
+})

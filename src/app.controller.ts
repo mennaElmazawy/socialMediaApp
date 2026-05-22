@@ -1,4 +1,3 @@
-import { GraphQLSchema, GraphQLObjectType, GraphQLString, GraphQLNonNull, GraphQLInt, GraphQLBoolean, GraphQLList } from 'graphql';
 import { createHandler } from 'graphql-http/lib/use/express';
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
@@ -20,6 +19,7 @@ import postRouter from "./modules/posts/post.controller";
 import storyRouter from "./modules/story/story.controller";
 import "./cron"
 import notificationRouter from "./modules/notification/notification.controller";
+import { gql_schema } from './modules/qraphql/graphQl.schema';
 
 
 
@@ -45,67 +45,10 @@ const bootstrap = () => {
 
     checkConnectionDB()
     redisService.connect()
-    const users = [{ id: 1, name: "first", age: 25 },
-    { id: 2, name: "second", age: 26 },
-    { id: 3, name: "third", age: 27 }
-    ]
-    let queryObject = new GraphQLObjectType({
-        name: "getUser",
-        fields: {
-            id: { type: GraphQLInt },
-            name: { type: GraphQLString },
-            age: { type: GraphQLInt },
 
-        }
-    })
-    const schema = new GraphQLSchema({
-        query: new GraphQLObjectType({
-            name: "query",
-            description: "query info",
-            fields: {
-                hi: {
-                    type: new GraphQLNonNull(GraphQLString),
-                    resolve: (): string => {
-                        return "hi"
-                    }
-                },
-                hello: {
-                    type: GraphQLInt,
-                    resolve: (): number => {
-                        return 5
-                    }
-                },
-                getBoolean: {
-                    type: GraphQLBoolean,
-                    resolve: (): boolean => {
-                        return true
-                    }
-                },
-                getUsers: {
-                    type: queryObject,
-                    args: {
-                        id: { type: new GraphQLNonNull(GraphQLInt) },
-                    },
 
-                    resolve: (parent, args) => {
-                        const user = users.find(user => user.id == args.id)
-                        if (!user) {
-                            throw new AppError("user not exist")
-                        }
-                        return user
-                    }
-                },
-                listUsers: {
-                    type: new GraphQLList(queryObject),
-                    resolve: () => {
-                        return users
-                    }
-                }
-
-            }
-        })
-    })
-    app.use("/graphql", createHandler({ schema }))
+  
+    app.use("/graphql", createHandler({ schema:gql_schema , context:(req)=>({req})}))
 
     app.get("/", async (req: Request, res: Response, next: NextFunction) => {
         res.status(200).json({ message: "welcome to social app " });

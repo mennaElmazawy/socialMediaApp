@@ -13,8 +13,13 @@ import { Compare, Hash } from "../../common/utils/security/hash.security";
 import successResponse from "../../common/utils/responses/response.success";
 import { IUpdatedPasswordSchema, IVerifyForgetPasswordSchema } from "./user.validation";
 import { S3Service } from "../../common/services/s3service";
+import { Types } from "mongoose";
 
 
+const users = [{ id: 1, name: "first", age: 25, gender: "female" },
+{ id: 2, name: "second", age: 26, gender: "female" },
+{ id: 3, name: "third", age: 27, gender: "female" }
+]
 
 class UserServices {
     private readonly _userModel = new UserRepository()
@@ -193,6 +198,18 @@ class UserServices {
         }
 
         successResponse({ res, message: "user deleted permenently", data: user })
+    }
+
+
+    ////////graphQl//////////
+
+    getUser = async(userId:Types.ObjectId) => {
+        return  await this._userModel.findOne({filter:{_id:userId}})
+       
+    }
+    getUsers =async () => {
+       
+        return await this._userModel.find({filter:{}})
     }
 
 

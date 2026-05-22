@@ -10,3 +10,11 @@ export const authorization = (roles:RoleEnum[]) => {
         next();
     };
 };
+export const authorization_gql =async (roles: string[], role: string) => {
+
+    if (!roles.includes(role)) {
+        throw new AppError("UnAuthorized", 403)
+    }
+
+
+};

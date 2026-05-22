@@ -1,3 +1,4 @@
+import { authorization } from './authorization';
 import { NextFunction, Request, Response } from "express";
 import { AppError } from "../utils/responses/global_error_handler";
 import { PREFIX, SECRET_KEY } from "../../config/config.service";
@@ -19,10 +20,10 @@ export interface IDecodedToken extends JwtPayload {
     id: string;
     jti: string;
 }
-
+const _userModel = new UserRepository()
+const tokenService = new TokenServices()
 export const authentication = async (req: Request, res: Response, next: NextFunction) => {
-    const _userModel = new UserRepository()
-    const tokenService = new TokenServices()
+
     const { authorization } = req.headers;
     if (!authorization) {
         throw new AppError("token not exist", 401)
@@ -56,4 +57,34 @@ export const authentication = async (req: Request, res: Response, next: NextFunc
     req.user = user;
     req.decoded = decoded;
     next()
+}
+export const authentication_gql = async (authorization: string) => {
+
+    if (!authorization) {
+        throw new AppError("token not exist", 401)
+    }
+
+    const [prefix, token] = authorization.split(" ");
+    if (prefix !== PREFIX) {
+        throw new AppError("invalid prefix", 401)
+    }
+
+    const decoded = await tokenService.VerifyToken({
+        token: token!,
+        secret: SECRET_KEY!
+    }) as IDecodedToken;
+    if (!decoded || !decoded?.id) {
+        throw new AppError("invalid token", 401)
+    }
+    const user = await _userModel.findOne({ filter: { _id: decoded.id }, projection: "-password" })
+    if (!user) {
+        throw new AppError("user not exist", 404)
+    }
+    if (user.changeCredential && user.changeCredential.getTime() > decoded.iat! * 1000) {
+        throw new AppError("invalid token", 401)
+    }
+
+    return {user,decoded}
+
+ 
 }
