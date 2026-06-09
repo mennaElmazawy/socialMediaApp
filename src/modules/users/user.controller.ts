@@ -8,12 +8,15 @@ import * as UserValidation from "./user.validation.js"
 import { Validation } from "../../common/middleware/validation";
 import multerCloud from "../../common/middleware/multer.cloud";
 import { Store_Enum } from "../../common/enum/multer.enum";
+import chatRouter from "../chat/chat.controller";
 
 
 const userRouter = Router()
+userRouter.use("/:userId/chat", chatRouter)
 
-userRouter.get("/getProfile", authentication, userServices.getProfile)
+
 userRouter.post("/logout", authentication, userServices.logout)
+userRouter.get("/getProfile", authentication, userServices.getProfile)
 userRouter.get("/refreshToken", userServices.refreshToken)
 userRouter.post("/forgetPassword", Validation(AuthValidation.resendEmailSchema), userServices.forgetPassword)
 userRouter.patch("/verifyForgetPassword", Validation(UserValidation.verifyForgetPasswordSchema), userServices.verifyForgetPassword)

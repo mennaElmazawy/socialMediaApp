@@ -1,3 +1,4 @@
+import { authorization } from './common/middleware/authorization';
 import { createHandler } from 'graphql-http/lib/use/express';
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
@@ -21,13 +22,16 @@ import "./cron"
 import notificationRouter from "./modules/notification/notification.controller";
 import { gql_schema } from './modules/qraphql/graphQl.schema';
 
-
+import { Server } from "socket.io";
+import { decodeToken_and_fetchUser } from './common/middleware/authentication';
+import socketGateway from './modules/realtime/socket.gateway';
+import chatRouter from './modules/chat/chat.controller.js';
 
 
 
 const app: express.Application = express();
 const port: number = Number(PORT);
-const bootstrap = () => {
+const bootstrap = async () => {
 
     const limiter = rateLimit({
         windowMs: 15 * 60 * 1000,
@@ -47,8 +51,8 @@ const bootstrap = () => {
     redisService.connect()
 
 
-  
-    app.use("/graphql", createHandler({ schema:gql_schema , context:(req)=>({req})}))
+
+    app.use("/graphql", createHandler({ schema: gql_schema, context: (req) => ({ req }) }))
 
     app.get("/", async (req: Request, res: Response, next: NextFunction) => {
         res.status(200).json({ message: "welcome to social app " });
@@ -117,6 +121,7 @@ const bootstrap = () => {
     app.use("/users", userRouter)
     app.use("/posts", postRouter)
     app.use("/story", storyRouter)
+    app.use("/chat", chatRouter)
     app.use("/notification", notificationRouter)
 
     app.use("{/*demo}", (req: Request, res: Response, next: NextFunction) => {
@@ -126,10 +131,21 @@ const bootstrap = () => {
     app.use(globalErrorHandler)
 
 
-    app.listen(PORT, () => {
+    const httpServer = app.listen(PORT, () => {
         console.log(`Server is running on port ${port}`);
     }
     );
+    await socketGateway.initIo(httpServer)
+   
+    // io.of("/admin").on("connection", (socket) => {
+    //     console.log(socket.id)
+    //     socket.on("hi", (data, cb) => {
+    //         console.log(data)
+
+    //         // socket.emit("sayhiback",{messagge:"hi from server"})
+    //         cb("hi from server")
+    //     })
+    // })
 }
 
 export default bootstrap

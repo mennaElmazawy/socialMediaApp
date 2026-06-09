@@ -3,6 +3,7 @@ import { Router } from "express";
 import authServices from "./auth.services";
 import { Validation } from "../../common/middleware/validation";
 import * as AuthValidation from "./auth.validation";
+import chatRouter from "../chat/chat.controller";
 
 
 const authRouter = Router();

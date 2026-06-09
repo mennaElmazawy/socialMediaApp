@@ -1,4 +1,3 @@
-import { authorization } from './authorization';
 import { NextFunction, Request, Response } from "express";
 import { AppError } from "../utils/responses/global_error_handler";
 import { PREFIX, SECRET_KEY } from "../../config/config.service";
@@ -22,9 +21,9 @@ export interface IDecodedToken extends JwtPayload {
 }
 const _userModel = new UserRepository()
 const tokenService = new TokenServices()
-export const authentication = async (req: Request, res: Response, next: NextFunction) => {
 
-    const { authorization } = req.headers;
+
+export const decodeToken_and_fetchUser = async (authorization: string) => {
     if (!authorization) {
         throw new AppError("token not exist", 401)
     }
@@ -53,6 +52,12 @@ export const authentication = async (req: Request, res: Response, next: NextFunc
     if (revokeToken) {
         throw new AppError("invalid token Revoked", 401)
     }
+    return { user, decoded }
+}
+export const authentication = async (req: Request, res: Response, next: NextFunction) => {
+
+    const { authorization } = req.headers;
+    const { user, decoded } = await decodeToken_and_fetchUser(authorization!)
 
     req.user = user;
     req.decoded = decoded;
@@ -84,7 +89,7 @@ export const authentication_gql = async (authorization: string) => {
         throw new AppError("invalid token", 401)
     }
 
-    return {user,decoded}
+    return { user, decoded }
 
- 
+
 }

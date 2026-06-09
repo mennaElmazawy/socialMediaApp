@@ -32,8 +32,17 @@ class UserServices {
     }
 
     getProfile = async (req: Request, res: Response, next: NextFunction) => {
-        const user = req.user
-        successResponse({ res, message: "done", data: user })
+        const user = await this._userModel.findOne({
+            filter: { _id: req.user?._id as Types.ObjectId },
+            options: {
+                populate: [
+                    {
+                        path: "friends",
+                    }
+                ]
+            }
+        })
+        successResponse({ res, message: "done", data: { user } })
     }
 
     logout = async (req: Request, res: Response, next: NextFunction) => {
@@ -203,13 +212,13 @@ class UserServices {
 
     ////////graphQl//////////
 
-    getUser = async(userId:Types.ObjectId) => {
-        return  await this._userModel.findOne({filter:{_id:userId}})
-       
+    getUser = async (userId: Types.ObjectId) => {
+        return await this._userModel.findOne({ filter: { _id: userId } })
+
     }
-    getUsers =async () => {
-       
-        return await this._userModel.find({filter:{}})
+    getUsers = async () => {
+
+        return await this._userModel.find({ filter: {} })
     }
 
 

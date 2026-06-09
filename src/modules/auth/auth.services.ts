@@ -131,7 +131,7 @@ class authServices {
 
     signIn = async (req: Request, res: Response, next: NextFunction) => {
 
-        const { email, password, fcm }: ISignInType = req.body;
+        const { email, password, }: ISignInType = req.body;
         const user = await this._userModel.findOne({
             filter: {
                 email,
@@ -184,8 +184,8 @@ class authServices {
         })
 
 
-        if(fcm){
-            await this.redis.addFCM({userId:user._id,FCMToken:fcm })
+        if(req.body.fcm){
+            await this.redis.addFCM({userId:user._id,FCMToken:req.body.fcm })
             const tokens =await this.redis.getFCMs(user._id)
             await this._notificationService.sendNotifications({
                 tokens,
@@ -195,7 +195,7 @@ class authServices {
                 }
             })
         }
-        successResponse({ res, message: "login success", data: { access_token, refresh_token } })
+        successResponse({ res, message: "Done", data: { access_token, refresh_token } })
     }
 
     signUpWithGmail = async (req: Request, res: Response, next: NextFunction) => {
