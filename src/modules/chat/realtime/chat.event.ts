@@ -18,6 +18,20 @@ class ChatEvent {
         })
        
     }
+    join_room = async (socket:Socket, io:Server)=>{
+          socket.on("join_room", (data) => {
+            chatService.join_room(data,socket,io)
+
+        })
+       
+    }
+    sendGroupMessage = async (socket:Socket, io:Server)=>{
+          socket.on("sendGroupMessage", (data) => {
+            chatService.sendGroupMessage(data,socket,io)
+
+        })
+       
+    }
    
 }
 

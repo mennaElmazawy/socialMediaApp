@@ -30,7 +30,7 @@ class SocketGateway {
         })
         io.on("connection", async (socket) => {
             redisService.addSocket({ userId: socket.data.user._id, SocketId: socket.id })
-            console.log({ userSocketsIds: await redisService.getSockets(socket.data.user._id) })
+            // console.log({ userSocketsIds: await redisService.getSockets(socket.data.user._id) })
 
             await chatGateway.registerEvent(socket,io)
 

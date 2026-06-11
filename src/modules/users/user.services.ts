@@ -14,6 +14,7 @@ import successResponse from "../../common/utils/responses/response.success";
 import { IUpdatedPasswordSchema, IVerifyForgetPasswordSchema } from "./user.validation";
 import { S3Service } from "../../common/services/s3service";
 import { Types } from "mongoose";
+import ChatRepository from "../../DB/repositories/chat.repositories.js";
 
 
 const users = [{ id: 1, name: "first", age: 25, gender: "female" },
@@ -25,6 +26,7 @@ class UserServices {
     private readonly _userModel = new UserRepository()
     private readonly tokenService = new TokenServices()
     private readonly _s3service = new S3Service()
+   private readonly _chatModel = new ChatRepository()
 
     private readonly redis: RedisService
     constructor() {
@@ -42,7 +44,15 @@ class UserServices {
                 ]
             }
         })
-        successResponse({ res, message: "done", data: { user } })
+        const groups = await this._chatModel.find({
+            filter: {
+                participants: {$in: [req?.user?._id]},
+                group: { $exists: true }
+            }
+        })
+            
+                
+        successResponse({ res, message: "done", data: { user,groups } })
     }
 
     logout = async (req: Request, res: Response, next: NextFunction) => {
